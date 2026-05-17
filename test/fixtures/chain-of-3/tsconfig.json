@@ -1,0 +1,6 @@
+{
+  "extends": "./middle.json",
+  "compilerOptions": {
+    "module": "NodeNext"
+  }
+}
