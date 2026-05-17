@@ -1,6 +1,6 @@
 {
   "name": "tsconfig-inheritance-flattener-mcp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "MCP server that resolves TypeScript config inheritance chains and answers what compiler options actually apply to any file",
   "type": "module",
   "main": "dist/index.js",
