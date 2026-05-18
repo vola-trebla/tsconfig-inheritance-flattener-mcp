@@ -46,8 +46,8 @@ Exclude patterns: node_modules, dist
 ### Implementation
 
 ```typescript
-import ts from "typescript";
-import path from "path";
+import ts from 'typescript';
+import path from 'path';
 
 function flattenTsConfig(configPath: string): FlattenedConfig {
   // Step 1: collect inheritance chain by following `extends` manually
@@ -143,7 +143,7 @@ function resolveAlias(alias: string, configPath: string): ResolvedAlias {
   const paths = compilerOptions.paths as Record<string, string[]> | undefined;
   const baseUrl = compilerOptions.baseUrl as string | undefined;
 
-  if (!paths) throw new Error("No paths configured in tsconfig");
+  if (!paths) throw new Error('No paths configured in tsconfig');
 
   // Match alias against patterns (support wildcards)
   // Pattern: "@/*" matches "@/hooks/useAuth" → capture = "hooks/useAuth"
@@ -154,12 +154,12 @@ function resolveAlias(alias: string, configPath: string): ResolvedAlias {
     const physicalPaths: string[] = [];
     for (const target of targets) {
       // Replace "*" with captured segment
-      const resolved = target.replace("*", capture);
+      const resolved = target.replace('*', capture);
       const base = baseUrl ?? path.dirname(configPath);
       const abs = path.resolve(base, resolved);
 
       // Try: exact path, .ts, .tsx, /index.ts, /index.tsx
-      for (const suffix of ["", ".ts", ".tsx", "/index.ts", "/index.tsx"]) {
+      for (const suffix of ['', '.ts', '.tsx', '/index.ts', '/index.tsx']) {
         const candidate = abs + suffix;
         if (fs.existsSync(candidate)) physicalPaths.push(candidate);
       }
@@ -172,10 +172,10 @@ function resolveAlias(alias: string, configPath: string): ResolvedAlias {
 }
 
 function matchPattern(pattern: string, alias: string): string | null {
-  if (!pattern.includes("*")) {
-    return pattern === alias ? "" : null;
+  if (!pattern.includes('*')) {
+    return pattern === alias ? '' : null;
   }
-  const [prefix, suffix] = pattern.split("*");
+  const [prefix, suffix] = pattern.split('*');
   if (alias.startsWith(prefix) && alias.endsWith(suffix)) {
     return alias.slice(prefix.length, alias.length - suffix.length);
   }
@@ -221,7 +221,7 @@ function analyzeProjectReferences(configPath: string): ProjectReferencesResult {
   const refs: ts.ProjectReference[] = raw.config?.references ?? [];
 
   const references: ProjectReference[] = refs.map((ref) => {
-    const resolved = path.resolve(path.dirname(configPath), ref.path, "tsconfig.json");
+    const resolved = path.resolve(path.dirname(configPath), ref.path, 'tsconfig.json');
     return {
       path: ref.path,
       prepend: ref.prepend,

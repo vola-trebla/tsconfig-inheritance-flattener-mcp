@@ -1,21 +1,21 @@
-import ts from "typescript";
-import path from "path";
-import fs from "fs";
-import { createRequire } from "module";
+import ts from 'typescript';
+import path from 'path';
+import fs from 'fs';
+import { createRequire } from 'module';
 import type {
   FlattenedConfig,
   ResolvedAlias,
   ProjectReferencesResult,
   ProjectReference,
-} from "./types.js";
+} from './types.js';
 
 const require = createRequire(import.meta.url);
 
 function resolveExtendsPath(ext: string, fromDir: string): string {
-  if (ext.startsWith(".")) {
+  if (ext.startsWith('.')) {
     const resolved = path.resolve(fromDir, ext);
     if (fs.existsSync(resolved) && fs.statSync(resolved).isFile()) return resolved;
-    const withJson = resolved.endsWith(".json") ? resolved : resolved + ".json";
+    const withJson = resolved.endsWith('.json') ? resolved : resolved + '.json';
     return withJson;
   }
   // Package name — resolve via node_modules
@@ -25,9 +25,9 @@ function resolveExtendsPath(ext: string, fromDir: string): string {
     return pkgMain;
   } catch {
     // require.resolve may fail for .json; try manual node_modules lookup
-    const candidate = path.resolve(fromDir, "node_modules", ext);
-    if (fs.existsSync(candidate + ".json")) return candidate + ".json";
-    const withTsconfig = path.join(candidate, "tsconfig.json");
+    const candidate = path.resolve(fromDir, 'node_modules', ext);
+    if (fs.existsSync(candidate + '.json')) return candidate + '.json';
+    const withTsconfig = path.join(candidate, 'tsconfig.json');
     if (fs.existsSync(withTsconfig)) return withTsconfig;
     throw new Error(`Cannot resolve extends: "${ext}" from ${fromDir}`);
   }
@@ -111,7 +111,7 @@ export function flattenTsConfig(configPath: string): FlattenedConfig {
   const realErrors = parsed.errors.filter((e) => e.code !== 18003);
   if (realErrors.length > 0) {
     const msg = realErrors[0].messageText;
-    throw new Error(`Error parsing ${abs}: ${typeof msg === "string" ? msg : msg.messageText}`);
+    throw new Error(`Error parsing ${abs}: ${typeof msg === 'string' ? msg : msg.messageText}`);
   }
 
   return {
@@ -125,10 +125,10 @@ export function flattenTsConfig(configPath: string): FlattenedConfig {
 }
 
 function matchPattern(pattern: string, alias: string): string | null {
-  if (!pattern.includes("*")) {
-    return pattern === alias ? "" : null;
+  if (!pattern.includes('*')) {
+    return pattern === alias ? '' : null;
   }
-  const starIdx = pattern.indexOf("*");
+  const starIdx = pattern.indexOf('*');
   const prefix = pattern.slice(0, starIdx);
   const suffix = pattern.slice(starIdx + 1);
   if (
@@ -146,7 +146,7 @@ export function resolveAlias(alias: string, configPath: string): ResolvedAlias {
   const paths = compilerOptions.paths as Record<string, string[]> | undefined;
   const baseUrl = compilerOptions.baseUrl as string | undefined;
 
-  if (!paths) throw new Error("No paths configured in tsconfig");
+  if (!paths) throw new Error('No paths configured in tsconfig');
 
   for (const [pattern, targets] of Object.entries(paths)) {
     const capture = matchPattern(pattern, alias);
@@ -156,10 +156,10 @@ export function resolveAlias(alias: string, configPath: string): ResolvedAlias {
     const base = baseUrl ?? path.dirname(path.resolve(configPath));
 
     for (const target of targets) {
-      const resolved = target.includes("*") ? target.replace("*", capture) : target;
+      const resolved = target.includes('*') ? target.replace('*', capture) : target;
       const abs = path.resolve(base, resolved);
 
-      for (const suffix of ["", ".ts", ".tsx", ".js", "/index.ts", "/index.tsx"]) {
+      for (const suffix of ['', '.ts', '.tsx', '.js', '/index.ts', '/index.tsx']) {
         const candidate = abs + suffix;
         if (fs.existsSync(candidate)) physicalPaths.push(candidate);
       }
@@ -190,9 +190,9 @@ export function analyzeProjectReferences(configPath: string): ProjectReferencesR
     // If path points to a directory, append tsconfig.json
     let resolvedConfigPath = refPath;
     if (fs.existsSync(refPath) && fs.statSync(refPath).isDirectory()) {
-      resolvedConfigPath = path.join(refPath, "tsconfig.json");
-    } else if (!refPath.endsWith(".json")) {
-      resolvedConfigPath = refPath + "/tsconfig.json";
+      resolvedConfigPath = path.join(refPath, 'tsconfig.json');
+    } else if (!refPath.endsWith('.json')) {
+      resolvedConfigPath = refPath + '/tsconfig.json';
     }
     return {
       path: ref.path,
@@ -209,7 +209,7 @@ export function analyzeProjectReferences(configPath: string): ProjectReferencesR
       violations.push({
         importingFile: abs,
         importedPath: ref.resolvedConfigPath,
-        reason: "Project references itself",
+        reason: 'Project references itself',
       });
       continue;
     }
