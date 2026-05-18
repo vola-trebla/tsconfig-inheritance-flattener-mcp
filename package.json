@@ -53,5 +53,10 @@
     "src/**/*.ts": [
       "eslint --fix"
     ]
+  },
+  "mcpName": "io.github.vola-trebla/tsconfig-inheritance-flattener-mcp",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vola-trebla/tsconfig-inheritance-flattener-mcp.git"
   }
 }

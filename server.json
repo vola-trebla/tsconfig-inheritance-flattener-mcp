@@ -1,0 +1,20 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.vola-trebla/tsconfig-inheritance-flattener-mcp",
+  "description": "MCP server that resolves TypeScript config inheritance chains and answers what compiler options actually apply to any file",
+  "repository": {
+    "url": "https://github.com/vola-trebla/tsconfig-inheritance-flattener-mcp",
+    "source": "github"
+  },
+  "version": "0.1.2",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "tsconfig-inheritance-flattener-mcp",
+      "version": "0.1.2",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
