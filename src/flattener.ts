@@ -10,6 +10,8 @@ import type {
   EmissionEntry,
   EmissionStructureResult,
   ModuleResolutionResult,
+  OverlappingFile,
+  ConfigOverlapResult,
 } from './types.js';
 
 const require = createRequire(import.meta.url);
@@ -344,5 +346,71 @@ export function simulateModuleResolution(params: {
         | string[]
         | undefined) ?? [],
     isExternalLibraryImport: result.resolvedModule?.isExternalLibraryImport ?? false,
+  };
+}
+
+const KEY_OPTIONS = [
+  'strict',
+  'target',
+  'module',
+  'moduleResolution',
+  'jsx',
+  'skipLibCheck',
+  'noImplicitAny',
+  'strictNullChecks',
+] as const;
+
+export function detectConfigOverlaps(params: { configPaths: string[] }): ConfigOverlapResult {
+  const { configPaths } = params;
+  const fileToConfigs = new Map<string, string[]>();
+
+  for (const configPath of configPaths) {
+    const abs = path.resolve(configPath);
+    if (!fs.existsSync(abs)) throw new Error(`Config file not found: ${abs}`);
+
+    const raw = ts.readConfigFile(abs, ts.sys.readFile);
+    if (raw.error) throw new Error(`Error reading ${abs}: ${raw.error.messageText}`);
+
+    const parsed = ts.parseJsonConfigFileContent(raw.config, ts.sys, path.dirname(abs), {}, abs);
+
+    for (const file of parsed.fileNames) {
+      const existing = fileToConfigs.get(file);
+      if (existing) {
+        existing.push(abs);
+      } else {
+        fileToConfigs.set(file, [abs]);
+      }
+    }
+  }
+
+  const overlappingFiles: OverlappingFile[] = [];
+
+  for (const [file, configs] of fileToConfigs) {
+    if (configs.length < 2) continue;
+
+    const configEntries = configs.map((configPath) => {
+      const raw = ts.readConfigFile(configPath, ts.sys.readFile);
+      const parsed = ts.parseJsonConfigFileContent(
+        raw.config,
+        ts.sys,
+        path.dirname(configPath),
+        {},
+        configPath,
+      );
+      const opts = serializeCompilerOptions(parsed.options);
+      const keyOptions: Record<string, unknown> = {};
+      for (const key of KEY_OPTIONS) {
+        if (opts[key] !== undefined) keyOptions[key] = opts[key];
+      }
+      return { configPath, keyOptions };
+    });
+
+    overlappingFiles.push({ file, configs: configEntries });
+  }
+
+  return {
+    configsAnalyzed: configPaths.map((p) => path.resolve(p)),
+    overlapCount: overlappingFiles.length,
+    overlappingFiles,
   };
 }

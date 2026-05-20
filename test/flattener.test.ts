@@ -8,6 +8,7 @@ import {
   analyzeProjectReferences,
   explainEmissionStructure,
   simulateModuleResolution,
+  detectConfigOverlaps,
 } from '../src/flattener.js';
 
 const fixtures = path.resolve(import.meta.dirname, 'fixtures');
@@ -225,5 +226,43 @@ describe('simulateModuleResolution', () => {
         configPath: '/nonexistent/tsconfig.json',
       }),
     ).toThrow('Config file not found');
+  });
+});
+
+describe('detectConfigOverlaps', () => {
+  it('detects overlapping source files across two configs', () => {
+    const result = detectConfigOverlaps({
+      configPaths: [
+        fix('overlap-monorepo/tsconfig.app.json'),
+        fix('overlap-monorepo/tsconfig.spec.json'),
+      ],
+    });
+    expect(result.overlapCount).toBe(2);
+    expect(result.overlappingFiles[0].configs).toHaveLength(2);
+  });
+
+  it('overlapping entries include keyOptions for each config', () => {
+    const result = detectConfigOverlaps({
+      configPaths: [
+        fix('overlap-monorepo/tsconfig.app.json'),
+        fix('overlap-monorepo/tsconfig.spec.json'),
+      ],
+    });
+    const entry = result.overlappingFiles[0];
+    expect(entry.configs[0].keyOptions).toHaveProperty('strict');
+    expect(entry.configs[1].keyOptions).toHaveProperty('strict');
+  });
+
+  it('returns no overlaps for disjoint configs', () => {
+    const result = detectConfigOverlaps({
+      configPaths: [fix('simple/tsconfig.json'), fix('monorepo/tsconfig.json')],
+    });
+    expect(result.overlapCount).toBe(0);
+  });
+
+  it('throws on missing config file', () => {
+    expect(() => detectConfigOverlaps({ configPaths: ['/nonexistent/tsconfig.json'] })).toThrow(
+      'Config file not found',
+    );
   });
 });
