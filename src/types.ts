@@ -33,6 +33,16 @@ export interface ReferenceViolation {
   reason: string;
 }
 
+export interface ModuleResolutionResult {
+  moduleName: string;
+  containingFile: string;
+  configPath: string;
+  resolutionMode: string;
+  resolvedFile: string | null;
+  failedLookups: string[];
+  isExternalLibraryImport: boolean;
+}
+
 export interface EmissionEntry {
   source: string;
   compiled_js: string;

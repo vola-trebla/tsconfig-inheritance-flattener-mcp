@@ -9,6 +9,7 @@ import type {
   ProjectReference,
   EmissionEntry,
   EmissionStructureResult,
+  ModuleResolutionResult,
 } from './types.js';
 
 const require = createRequire(import.meta.url);
@@ -302,5 +303,46 @@ export function explainEmissionStructure(configPath: string): EmissionStructureR
     sourceMap,
     emissionTree,
     commonRootIssues,
+  };
+}
+
+export function simulateModuleResolution(params: {
+  moduleName: string;
+  containingFile: string;
+  configPath: string;
+}): ModuleResolutionResult {
+  const abs = path.resolve(params.configPath);
+  if (!fs.existsSync(abs)) throw new Error(`Config file not found: ${abs}`);
+
+  const configDir = path.dirname(abs);
+  const raw = ts.readConfigFile(abs, ts.sys.readFile);
+  if (raw.error) throw new Error(`Error reading ${abs}: ${raw.error.messageText}`);
+
+  const parsed = ts.parseJsonConfigFileContent(raw.config, ts.sys, configDir, {}, abs);
+  const compilerOptions = parsed.options;
+
+  const host = ts.createCompilerHost(compilerOptions);
+  const result = ts.resolveModuleName(
+    params.moduleName,
+    params.containingFile,
+    compilerOptions,
+    host,
+  );
+
+  const resolutionKind = compilerOptions.moduleResolution ?? ts.ModuleResolutionKind.Node10;
+  const resolutionMode =
+    (ts.ModuleResolutionKind as Record<number, string>)[resolutionKind] ?? String(resolutionKind);
+
+  return {
+    moduleName: params.moduleName,
+    containingFile: params.containingFile,
+    configPath: abs,
+    resolutionMode,
+    resolvedFile: result.resolvedModule?.resolvedFileName ?? null,
+    failedLookups:
+      ((result as unknown as Record<string, unknown>).failedLookupLocations as
+        | string[]
+        | undefined) ?? [],
+    isExternalLibraryImport: result.resolvedModule?.isExternalLibraryImport ?? false,
   };
 }

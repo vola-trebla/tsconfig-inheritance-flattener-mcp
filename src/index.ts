@@ -7,6 +7,7 @@ import {
   resolveAlias,
   analyzeProjectReferences,
   explainEmissionStructure,
+  simulateModuleResolution,
 } from './flattener.js';
 
 const server = new McpServer({
@@ -130,6 +131,39 @@ server.tool(
     if (result.commonRootIssues.length > 0) {
       lines.push(``, `  ⚠ Files outside rootDir (will cause TS errors):`);
       for (const f of result.commonRootIssues) lines.push(`    ${f}`);
+    }
+    return { content: [{ type: 'text', text: lines.join('\n') }] };
+  },
+);
+
+server.tool(
+  'simulate_module_resolution',
+  "Run TypeScript's exact module resolution algorithm for a given import and return the resolved file path plus every candidate path that was tried and rejected. Eliminates guesswork about why an import resolves (or fails to resolve) under Node16/NodeNext/Bundler strategies.",
+  {
+    moduleName: z
+      .string()
+      .describe('The import specifier to resolve, e.g. ./utils/helpers or @/components/Button'),
+    containingFile: z
+      .string()
+      .describe('Absolute path to the source file that contains the import'),
+    configPath: z
+      .string()
+      .describe('Absolute path to the tsconfig.json to use for resolution settings'),
+  },
+  async (args) => {
+    const result = simulateModuleResolution(args);
+    const lines = [
+      `Module Resolution: ${result.moduleName}`,
+      `  Containing file:  ${result.containingFile}`,
+      `  Config:           ${result.configPath}`,
+      `  Resolution mode:  ${result.resolutionMode}`,
+      ``,
+      result.resolvedFile ? `  Resolved: ${result.resolvedFile}` : `  Resolved: (not found)`,
+    ];
+    if (result.isExternalLibraryImport) lines.push(`  (external library)`);
+    if (result.failedLookups.length > 0) {
+      lines.push(``, `  Failed lookups:`);
+      for (const f of result.failedLookups) lines.push(`    ${f}`);
     }
     return { content: [{ type: 'text', text: lines.join('\n') }] };
   },
