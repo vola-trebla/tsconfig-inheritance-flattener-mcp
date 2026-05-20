@@ -33,6 +33,14 @@ describe('flattenTsConfig', () => {
     expect(() => flattenTsConfig('/nonexistent/tsconfig.json')).toThrow('Config file not found');
   });
 
+  it('resolves @scope/preset extends from local node_modules', () => {
+    const result = flattenTsConfig(fix('external-extends/tsconfig.json'));
+    expect(result.inheritanceChain).toHaveLength(2);
+    expect(result.compilerOptions.strict).toBe(true);
+    expect(result.compilerOptions.target).toBe('ES2022');
+    expect(result.compilerOptions.module).toBe('NodeNext');
+  });
+
   it('returns configPath as absolute path', () => {
     const result = flattenTsConfig(fix('simple/tsconfig.json'));
     expect(path.isAbsolute(result.configPath)).toBe(true);
