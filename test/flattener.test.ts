@@ -7,6 +7,7 @@ import {
   resolveAlias,
   analyzeProjectReferences,
   explainEmissionStructure,
+  simulateModuleResolution,
 } from '../src/flattener.js';
 
 const fixtures = path.resolve(import.meta.dirname, 'fixtures');
@@ -179,5 +180,50 @@ describe('explainEmissionStructure', () => {
     expect(() => explainEmissionStructure('/nonexistent/tsconfig.json')).toThrow(
       'Config file not found',
     );
+  });
+});
+
+describe('simulateModuleResolution', () => {
+  const containingFile = fix('with-paths/src/index.ts');
+  const configPath = fix('with-paths/tsconfig.json');
+
+  it('resolves an existing relative module to its file', () => {
+    const result = simulateModuleResolution({
+      moduleName: './hooks/useAuth',
+      containingFile,
+      configPath,
+    });
+    expect(result.resolvedFile).not.toBeNull();
+    expect(result.resolvedFile).toContain('useAuth.ts');
+  });
+
+  it('returns null for an unresolvable module', () => {
+    const result = simulateModuleResolution({
+      moduleName: './nonexistent-module',
+      containingFile,
+      configPath,
+    });
+    expect(result.resolvedFile).toBeNull();
+    expect(result.failedLookups.length).toBeGreaterThan(0);
+  });
+
+  it('reports resolutionMode as a string', () => {
+    const result = simulateModuleResolution({
+      moduleName: './hooks/useAuth',
+      containingFile,
+      configPath,
+    });
+    expect(typeof result.resolutionMode).toBe('string');
+    expect(result.resolutionMode.length).toBeGreaterThan(0);
+  });
+
+  it('throws on missing config file', () => {
+    expect(() =>
+      simulateModuleResolution({
+        moduleName: './foo',
+        containingFile,
+        configPath: '/nonexistent/tsconfig.json',
+      }),
+    ).toThrow('Config file not found');
   });
 });
