@@ -7,6 +7,8 @@ import type {
   ResolvedAlias,
   ProjectReferencesResult,
   ProjectReference,
+  EmissionEntry,
+  EmissionStructureResult,
 } from './types.js';
 
 const require = createRequire(import.meta.url);
@@ -231,4 +233,74 @@ export function analyzeProjectReferences(configPath: string): ProjectReferencesR
   }
 
   return { configPath: abs, references, violations };
+}
+
+function computeCommonRootDir(fileNames: string[]): string {
+  if (fileNames.length === 0) return path.sep;
+  const dirs = fileNames.map((f) => path.dirname(f));
+  let common = dirs[0].split(path.sep);
+  for (const dir of dirs.slice(1)) {
+    const parts = dir.split(path.sep);
+    let i = 0;
+    while (i < common.length && i < parts.length && common[i] === parts[i]) i++;
+    common = common.slice(0, i);
+  }
+  return common.join(path.sep) || path.sep;
+}
+
+export function explainEmissionStructure(configPath: string): EmissionStructureResult {
+  const abs = path.resolve(configPath);
+  if (!fs.existsSync(abs)) throw new Error(`Config file not found: ${abs}`);
+
+  const configDir = path.dirname(abs);
+  const raw = ts.readConfigFile(abs, ts.sys.readFile);
+  if (raw.error) throw new Error(`Error reading ${abs}: ${raw.error.messageText}`);
+
+  const parsed = ts.parseJsonConfigFileContent(raw.config, ts.sys, configDir, {}, abs);
+
+  const outDir = parsed.options.outDir ?? configDir;
+  const rootDir = parsed.options.rootDir ?? computeCommonRootDir(parsed.fileNames);
+  const declaration = parsed.options.declaration ?? false;
+  const sourceMap = parsed.options.sourceMap ?? false;
+
+  const emissionTree: EmissionEntry[] = [];
+  const commonRootIssues: string[] = [];
+
+  for (const sourceFile of parsed.fileNames) {
+    const rel = path.relative(rootDir, sourceFile);
+    if (rel.startsWith('..')) commonRootIssues.push(sourceFile);
+
+    const outputFiles = ts.getOutputFileNames(
+      parsed,
+      sourceFile,
+      !ts.sys.useCaseSensitiveFileNames,
+    );
+
+    let compiled_js = '';
+    let declaration_file: string | null = null;
+    let source_map: string | null = null;
+
+    for (const f of outputFiles) {
+      if (f.endsWith('.d.ts')) declaration_file = f;
+      else if (f.endsWith('.js.map')) source_map = f;
+      else if (f.endsWith('.js')) compiled_js = f;
+    }
+
+    emissionTree.push({
+      source: sourceFile,
+      compiled_js,
+      declaration: declaration_file,
+      source_map,
+    });
+  }
+
+  return {
+    configPath: abs,
+    rootDir,
+    outDir,
+    declaration,
+    sourceMap,
+    emissionTree,
+    commonRootIssues,
+  };
 }

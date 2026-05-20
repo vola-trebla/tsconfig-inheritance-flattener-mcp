@@ -2,7 +2,12 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as fs from 'fs';
 import * as os from 'os';
 import path from 'path';
-import { flattenTsConfig, resolveAlias, analyzeProjectReferences } from '../src/flattener.js';
+import {
+  flattenTsConfig,
+  resolveAlias,
+  analyzeProjectReferences,
+  explainEmissionStructure,
+} from '../src/flattener.js';
 
 const fixtures = path.resolve(import.meta.dirname, 'fixtures');
 const fix = (p: string) => path.join(fixtures, p);
@@ -136,6 +141,42 @@ describe('analyzeProjectReferences', () => {
 
   it('throws on missing config file', () => {
     expect(() => analyzeProjectReferences('/nonexistent/tsconfig.json')).toThrow(
+      'Config file not found',
+    );
+  });
+});
+
+describe('explainEmissionStructure', () => {
+  it('returns emission tree with js and dts paths', () => {
+    const result = explainEmissionStructure(fix('emit-structure/tsconfig.json'));
+    expect(result.emissionTree.length).toBeGreaterThan(0);
+    expect(result.emissionTree[0].compiled_js).toContain('dist/');
+    expect(result.emissionTree[0].declaration).toContain('.d.ts');
+  });
+
+  it('emission tree covers both source files', () => {
+    const result = explainEmissionStructure(fix('emit-structure/tsconfig.json'));
+    expect(result.emissionTree).toHaveLength(2);
+    const sources = result.emissionTree.map((e) => e.source);
+    expect(sources.some((s) => s.endsWith('index.ts'))).toBe(true);
+    expect(sources.some((s) => s.endsWith('helper.ts'))).toBe(true);
+  });
+
+  it('reports correct rootDir and outDir', () => {
+    const result = explainEmissionStructure(fix('emit-structure/tsconfig.json'));
+    expect(result.rootDir).toContain('src');
+    expect(result.outDir).toContain('dist');
+    expect(result.declaration).toBe(true);
+    expect(result.sourceMap).toBe(false);
+  });
+
+  it('no commonRootIssues for well-structured config', () => {
+    const result = explainEmissionStructure(fix('emit-structure/tsconfig.json'));
+    expect(result.commonRootIssues).toHaveLength(0);
+  });
+
+  it('throws on missing config file', () => {
+    expect(() => explainEmissionStructure('/nonexistent/tsconfig.json')).toThrow(
       'Config file not found',
     );
   });

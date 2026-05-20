@@ -2,7 +2,12 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod/v4';
-import { flattenTsConfig, resolveAlias, analyzeProjectReferences } from './flattener.js';
+import {
+  flattenTsConfig,
+  resolveAlias,
+  analyzeProjectReferences,
+  explainEmissionStructure,
+} from './flattener.js';
 
 const server = new McpServer({
   name: 'tsconfig-inheritance-flattener-mcp',
@@ -90,6 +95,41 @@ server.tool(
       }
     } else {
       lines.push(``, `No violations found.`);
+    }
+    return { content: [{ type: 'text', text: lines.join('\n') }] };
+  },
+);
+
+server.tool(
+  'explain_emission_structure',
+  'Build a virtual tree of what TypeScript will emit for each source file — compiled JS, declaration (.d.ts), and source map paths — without running the compiler. Useful when an agent needs to predict where output files will land or debug rootDir/outDir misconfigurations.',
+  {
+    configPath: z
+      .string()
+      .describe('Absolute path to the tsconfig.json to analyze for emission structure'),
+  },
+  async (args) => {
+    const result = explainEmissionStructure(args.configPath);
+    const lines = [
+      `Emission Structure`,
+      `  Config:      ${result.configPath}`,
+      `  rootDir:     ${result.rootDir}`,
+      `  outDir:      ${result.outDir}`,
+      `  declaration: ${result.declaration}`,
+      `  sourceMap:   ${result.sourceMap}`,
+      ``,
+      `  Source → Output:`,
+      `  ${'─'.repeat(53)}`,
+    ];
+    for (const entry of result.emissionTree) {
+      lines.push(`  ${entry.source}`);
+      lines.push(`    js:  ${entry.compiled_js}`);
+      if (entry.declaration) lines.push(`    dts: ${entry.declaration}`);
+      if (entry.source_map) lines.push(`    map: ${entry.source_map}`);
+    }
+    if (result.commonRootIssues.length > 0) {
+      lines.push(``, `  ⚠ Files outside rootDir (will cause TS errors):`);
+      for (const f of result.commonRootIssues) lines.push(`    ${f}`);
     }
     return { content: [{ type: 'text', text: lines.join('\n') }] };
   },
