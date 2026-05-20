@@ -8,6 +8,7 @@ import {
   analyzeProjectReferences,
   explainEmissionStructure,
   simulateModuleResolution,
+  detectConfigOverlaps,
 } from './flattener.js';
 
 const server = new McpServer({
@@ -165,6 +166,43 @@ server.tool(
       lines.push(``, `  Failed lookups:`);
       for (const f of result.failedLookups) lines.push(`    ${f}`);
     }
+    return { content: [{ type: 'text', text: lines.join('\n') }] };
+  },
+);
+
+server.tool(
+  'detect_config_overlaps',
+  'Find source files compiled by more than one tsconfig simultaneously and surface option conflicts (strict, module, target, etc.) between them. Essential for monorepos where tsconfig.app.json and tsconfig.spec.json share the same src/ tree with incompatible settings.',
+  {
+    configPaths: z
+      .array(z.string())
+      .min(2)
+      .describe('Two or more absolute paths to tsconfig.json files to compare'),
+  },
+  async (args) => {
+    const result = detectConfigOverlaps({ configPaths: args.configPaths });
+    const lines = [
+      `Config Overlap Detection`,
+      `  Configs analyzed: ${result.configsAnalyzed.length}`,
+      `  Overlapping files: ${result.overlapCount}`,
+    ];
+    for (const entry of result.overlappingFiles) {
+      lines.push(``, `  ${entry.file}`);
+      for (const cfg of entry.configs) {
+        const opts = Object.entries(cfg.keyOptions)
+          .map(([k, v]) => `${k}=${v}`)
+          .join(' ');
+        lines.push(`    ${cfg.configPath}    ${opts}`);
+      }
+      // Detect differing keys
+      const allKeys = new Set(entry.configs.flatMap((c) => Object.keys(c.keyOptions)));
+      const differing = [...allKeys].filter((k) => {
+        const vals = entry.configs.map((c) => JSON.stringify(c.keyOptions[k]));
+        return new Set(vals).size > 1;
+      });
+      if (differing.length > 0) lines.push(`    ⚠ Options differ: ${differing.join(', ')}`);
+    }
+    if (result.overlapCount === 0) lines.push(``, `  No overlapping files found.`);
     return { content: [{ type: 'text', text: lines.join('\n') }] };
   },
 );

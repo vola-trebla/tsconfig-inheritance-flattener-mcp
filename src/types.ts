@@ -33,6 +33,20 @@ export interface ReferenceViolation {
   reason: string;
 }
 
+export interface OverlappingFile {
+  file: string;
+  configs: Array<{
+    configPath: string;
+    keyOptions: Record<string, unknown>;
+  }>;
+}
+
+export interface ConfigOverlapResult {
+  configsAnalyzed: string[];
+  overlapCount: number;
+  overlappingFiles: OverlappingFile[];
+}
+
 export interface ModuleResolutionResult {
   moduleName: string;
   containingFile: string;
