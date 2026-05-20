@@ -1,4 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import * as fs from 'fs';
+import * as os from 'os';
 import path from 'path';
 import { flattenTsConfig, resolveAlias, analyzeProjectReferences } from '../src/flattener.js';
 
@@ -42,6 +44,47 @@ describe('flattenTsConfig', () => {
     const result = flattenTsConfig(fix('chain-of-3/tsconfig.json'));
     expect(typeof result.compilerOptions.target).toBe('string');
     expect(typeof result.compilerOptions.module).toBe('string');
+  });
+});
+
+describe('external @scope/preset extends resolution', () => {
+  let externalDir: string;
+
+  beforeAll(() => {
+    externalDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tsconfig-ext-test-'));
+    const presetDir = path.join(externalDir, 'node_modules', '@my-scope', 'strict-preset');
+    fs.mkdirSync(presetDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(presetDir, 'package.json'),
+      JSON.stringify({ name: '@my-scope/strict-preset', version: '1.0.0', main: 'tsconfig.json' }),
+    );
+    fs.writeFileSync(
+      path.join(presetDir, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          strict: true,
+          target: 'ES2022',
+          module: 'NodeNext',
+          moduleResolution: 'NodeNext',
+        },
+      }),
+    );
+    fs.writeFileSync(
+      path.join(externalDir, 'tsconfig.json'),
+      JSON.stringify({ extends: '@my-scope/strict-preset', compilerOptions: { outDir: './dist' } }),
+    );
+  });
+
+  afterAll(() => {
+    fs.rmSync(externalDir, { recursive: true, force: true });
+  });
+
+  it('resolves @scope/preset extends from local node_modules', () => {
+    const result = flattenTsConfig(path.join(externalDir, 'tsconfig.json'));
+    expect(result.inheritanceChain).toHaveLength(2);
+    expect(result.compilerOptions.strict).toBe(true);
+    expect(result.compilerOptions.target).toBe('ES2022');
+    expect(result.compilerOptions.module).toBe('NodeNext');
   });
 });
 
