@@ -1,6 +1,0 @@
-{
-  "extends": "@my-scope/strict-preset",
-  "compilerOptions": {
-    "outDir": "./dist"
-  }
-}
