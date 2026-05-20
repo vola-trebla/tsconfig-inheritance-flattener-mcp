@@ -32,3 +32,20 @@ export interface ReferenceViolation {
   importedPath: string;
   reason: string;
 }
+
+export interface EmissionEntry {
+  source: string;
+  compiled_js: string;
+  declaration: string | null;
+  source_map: string | null;
+}
+
+export interface EmissionStructureResult {
+  configPath: string;
+  rootDir: string;
+  outDir: string;
+  declaration: boolean;
+  sourceMap: boolean;
+  emissionTree: EmissionEntry[];
+  commonRootIssues: string[];
+}
